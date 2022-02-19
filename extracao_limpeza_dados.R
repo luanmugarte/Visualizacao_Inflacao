@@ -1,4 +1,4 @@
-setwd("/home/luanmugarte/base_de_dados")
+setwd("/home/luanmugarte/base_de_dados/Visualizacao_Inflacao")
 
 # Carregando pacotes
 #### Carregando pacotes ####
@@ -9,6 +9,7 @@ library(cowplot)
 library(scales)
 library(RColorBrewer)
 library(dplyr)
+library(tidyr)
 library(tibble)
 library(ggplot2)
 library(knitr)
@@ -17,10 +18,14 @@ library(broom)
 library(RcppRoll)
 library(plotly)
 library(here)
+library(stringr)
+library(readxl)
+library(purrr)
+library(data.table)
 
 #---------------------------------------------------------------------#
 #                                                                     #
-####                  EXTRAÇÃO DOS DADOS                           ####
+####      EXTRAÇÃO DOS DADOS                                       ####
 #                                                                     #
 #---------------------------------------------------------------------#
 
@@ -30,35 +35,156 @@ set_billing_id("visualizacaobasedosdados")
 
 # Índice cheio do IPCA
 query <- bdplyr("br_ibge_ipca.mes_brasil")
-df_ipca_cheio <- bd_collect(query)
+df_ipca_cheio <- bd_collect(query) 
 
 # Categorias do IPCA
 query <- bdplyr("br_ibge_ipca.mes_categoria_brasil")
 df_ipca_categorias <- bd_collect(query)
-df_ipca_categorias
+
 unique(df_ipca_categorias$categoria)
 
-# Cambio
-cambio <- read.csv("data/cambio.csv", sep = ';', dec = ',', header = T)
-cambio <- as.xts(ts((cambio[,2]), start = c(1999,8), end = c(2021,10), frequency = 12))
+# Municípios e Regioes Metropolitanas
+query <- bdplyr("br_ibge_ipca.mes_categoria_municipio")
+df_ipca_municipio <- bd_collect(query)
+glimpse(df_ipca_municipio)
 
-# Commodities
-fmi_comm <- read_excel("data/FMI_comm.xlsx", col_names = c('date','FMI Index','FMI Petróleo'))
-fmi_comm
+query <- bdplyr("br_ibge_ipca.mes_categoria_rm")
+df_ipca_rm <- bd_collect(query) 
+glimpse(df_ipca_rm)
 
-# Inflação por renda 
-inflacao_dist <- read_excel("data/inflacao_por_renda.xlsx", .name_repair = ~c('Data','Muito Baixa','Baixa','MedBaixa','Media','MedAlta','Alta'))
-inflacao_dist
+# Complementação do IPCA de categorias
+ipca_categorias_complemento <- read_excel('data/IPCA_categorias.xlsx',col_names = T)
 
-# PIB mensal
-pib_mensal <- read.csv("data/pib_mensal.csv", sep = ';')
+# Reajuste dos nomes das colunas para combinar com o id_categoria
+colnames(ipca_categorias_complemento) <- c('data',gsub("[^0-9]", "", colnames(ipca_categorias_complemento)[2:81]))
+
 
 #---------------------------------------------------------------------#
 #                                                                     #
-####                  MANIPULAÇÃO E LIMPEZA DOS DADOS              ####
+####      LIMPEZA E MANIPULAÇÃO DOS DADOS                          ####
 #                                                                     #
 #---------------------------------------------------------------------#
 
+# Primeiro projeto: análise de dados da inflação via IPCA
+
+# Para o IPCA cheio, analisar variação mensal e acumulada em 12 meses
+
+# Para categorias e geografia que vai de jan/2020 até agora
+# Analisar pesos, variação mensal, variação em 12 meses e variação 
+# acumulado até o dados mais recente
+
+# IPCA cheio
+ipca_cheio <- df_ipca_cheio %>%
+  select(!c(indice,variacao_trimestral,variacao_semestral,variacao_anual)) %>%
+  filter(ano >= 2000)
+ipca_cheio  
+
+# IPCA de categorias
+ipca_categorias <- df_ipca_categorias %>%
+  select(!c(id_categoria_bd,variacao_anual)) %>%
+  mutate(id_categoria = as.numeric(id_categoria)) %>%
+  # Filtrando somente até ítens do IPCA
+  filter(id_categoria < 10000) %>%
+  group_by(id_categoria) %>%
+  mutate(variacao_acumulada = (cumprod(1+(variacao_mensal/100))-1)*100,2) %>%
+  arrange(id_categoria)
+ipca_categorias
+
+# Complementando com os dados de antes de 2020 para obter os dados da variação em 12 meses
+
+# Criando um dataframe vazio e combinando ele com o complemento
+empty_df <- data.frame(matrix(data = 0.5, nrow = nrow(ipca_categorias_complemento), ncol = ncol(ipca_categorias_complemento)))
+colnames(empty_df) <- colnames(ipca_categorias_complemento)
+df_ipca_categorias_complemento <-rbind(ipca_categorias_complemento,empty_df)
+
+# Criando um tibble que possui os valores falantes do IPCA acumulado em 12 meses
+ipca_categorias_complemento <- df_ipca_categorias_complemento %>%
+  mutate(across(!data, ~(as.numeric(.)/100)+1)) %>%
+  mutate(across(!data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = T, fill = 1.04)-1)*100,2))) %>%
+  select(!data) %>%
+  slice(13:(n()-1)) %>%
+  mutate(ano = 2020) %>%
+  mutate(mes = 1:11) %>%
+  dplyr::select(ano,mes,everything())
+
+setDT(ipca_categorias_complemento)
+ipca_categorias_melted <- melt(ipca_categorias_complemento,id.vars=(c('ano','mes')))
+
+# 
+# colnames(ipca_categorias_melted) <- c('ano','mes','id_categoria','value')
+# ipca_categorias_melted
+# 
+# setDT(ipca_categorias)
+# 
+# ipca_categorias[.(variacao_doze_meses = ipca_categorias[]
+# 
+# ipca_categorias[.(variacao_doze_meses = ipca_categorias_melted[value %in% id_categoria, unique(id_categoria)]), on = 'id_categoria']
+
+# df_ipca_categorias %>%
+#   mutate(id_categoria = as.numeric(id_categoria)) %>%
+#   filter(id_categoria < 10000) %>%
+#   distinct(id_categoria) %>%
+#   count()
+# 
+# unique(ipca_grupos$categoria)
+# 
+# unique(df_ipca_categorias$id_categoria)
+# 
+# ipca_categorias  <- df_ipca_categorias %>%
+#   select(!c(id_categoria_bd,variacao_anual)) %>%
+#   order_by(as.numeric(id_categoria))
+# 
+# data("ToothGrowth")
+# ToothGrowth
+# ToothGrowth %>% 
+#   group_by(supp, dose) %>%
+#   mutate(lenmean = mean(len),
+#          submean2 = len - lenmean/dose)
+# 
+# df_ipca_categorias$id_categoria
+
+
+  # mutate(variacao_acumulada = case_when( ano = 2020 & mes = 1 ~ variacao_mensal,
+  #                                        TRUE ~ dplyr::lag(categoria)
+  #                                        )
+  #        )
+
+
+ipca_categorias %>% 
+  filter(categoria == 'Despesas pessoais')
+  
+## Ids dos municípios
+query <- "SELECT
+id_municipio, 
+nome AS nome_municipio,
+id_regiao_imediata,
+nome_regiao_imediata,
+id_mesorregiao,
+nome_mesorregiao,
+id_microrregiao,
+nome_microrregiao
+FROM `basedosdados.br_bd_diretorios_brasil.municipio`"
+
+df_ids <- read_sql(query)
+
+
+nomes_municipios <- df_ids %>%
+  filter(id_municipio %in% unique(df_ipca_municipio$id_municipio)) %>%
+  distinct(nome_municipio)
+nomes_municipios
+
+## Ids das regioes metropolitanas
+nomes_rm_df <- read_excel('data/Composicao_RMs_RIDEs_AglomUrbanas_2020_06_30.xlsx',col_names = T)
+
+nomes_rm <- nomes_rm_df %>%
+  filter(COD %in% unique(df_ipca_rm$id_regiao_metropolitana)) %>%
+  distinct(NOME)
+nomes_rm  
+
+
+
+
+# Segundo projeto: desigualdade de inflação no Brasil ####
 # Dados serão selecionados de julho de 2006 até o ano mais recente,
 # em virtude da disponibilidade de dados sobre inflação por classe de
 # renda do IPEA.
@@ -68,176 +194,76 @@ pib_mensal <- read.csv("data/pib_mensal.csv", sep = ';')
 
 # Começar os dados em 1999/08 e terminar em 2021/10, se possível
 
-# IPCA - Cheio ####
-ipca_cheio <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_cheio.csv", sep = ';', dec = ',', header = F)
-ipca_cheio <- as.xts(ts((ipca_cheio[,2]), start = c(1999,8), end = c(2021,10), frequency = 12))
+# # IPCA - Cheio 
+# ipca_cheio <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_cheio.csv", sep = ';', dec = ',', header = F)
+# ipca_cheio <- as.xts(ts((ipca_cheio[,2]), start = c(1999,8), end = c(2021,10), frequency = 12))
 
-# IPCA - Alimentos e Bebidas ####
+# IPCA - Alimentos e Bebidas 
 
-IPCA_AlimBeb <- read.csv("/home/luanmugarte/Tese/Dados/alimbebs.csv", sep = ';', dec = ',', header = T)
-
-IPCA_AlimBeb <- tibble(IPCA_AlimBeb) %>%
-mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
-mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
-glimpse(IPCA_AlimBeb)
-
-IPCA_AlimBeb <- as.xts(ts((IPCA_AlimBeb[103:nrow(IPCA_AlimBeb),2]), start = c(1999,8), end = c(2021,10), frequency = 12))
-plot(IPCA_AlimBeb)
-
-# IPCA - Habitação ####
-
-IPCA_Habit <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_Habit.csv", sep = ';', dec = ',', header = T)
-IPCA_Habit
-
-IPCA_Habit <- tibble(IPCA_Habit) %>%
-mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
-mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
-glimpse(IPCA_Habit)
-
-IPCA_Habit <- as.xts(ts((IPCA_Habit[103:nrow(IPCA_Habit),2]), start = c(1999,8), end = c(2021,10), frequency = 12))
-plot(IPCA_Habit)
-
-# Cambio ####
-cambio <- read.csv("/home/luanmugarte/Tese/Dados/cambio.csv", sep = ';', dec = ',', header = T)
-cambio <- as.xts(ts((cambio[,2]), start = c(1999,8), end = c(2021,10), frequency = 12))
-
-# Commodities ####
-fmi_comm <- read_excel("/home/luanmugarte/Tese/Dados/FMI_comm.xlsx", col_names = c('date','FMI Index','FMI Petróleo'))
-fmi_comm
-
-# PIB ####
-
-pib <- read.csv("/home/luanmugarte/Tese/Dados/PIB.csv")
-pib
-pib <- as.xts(ts((pib[11:nrow(pib),2]), start = c(1999,3), end = c(2021,2), frequency = 4))
-plot(pib)
-
-# Transportes
-ipca_cheio <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_cheio.csv", sep = ';', dec = ',', header = F)
-ipca_cheio <- as.xts(ts((ipca_cheio[,2]), start = c(1999,8), end = c(2019,12), frequency = 12))
-IPCA_transp <- read_excel("/home/luanmugarte/Tese/Dados/transportes_selecionados.xlsx", .name_repair = ~c('Data','Transporte Público','Veículos','Combustíveis'))
-IPCA_transp <- IPCA_transp %>%
-  mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
-  mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = 1.04)-1)*100,2))) %>%
-  mutate(across(!Data, ~round(.,2) ))
-date <- seq(as.Date("1999-08-1"), as.Date("2019-12-1"), by = "month")
-df_acum <- data.frame(date,IPCA_transp[,c(2,3,4)],ipca_cheio)
-
-# Inflação por renda ####
+# IPCA_AlimBeb <- read.csv("/home/luanmugarte/Tese/Dados/alimbebs.csv", sep = ';', dec = ',', header = T)
+# 
+# IPCA_AlimBeb <- tibble(IPCA_AlimBeb) %>%
+# mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
+# mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
+# glimpse(IPCA_AlimBeb)
+# 
+# IPCA_AlimBeb <- as.xts(ts((IPCA_AlimBeb[103:nrow(IPCA_AlimBeb),2]), start = c(1999,8), end = c(2021,10), frequency = 12))
+# plot(IPCA_AlimBeb)
+# 
+# # IPCA - Habitação 
+# 
+# IPCA_Habit <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_Habit.csv", sep = ';', dec = ',', header = T)
+# IPCA_Habit
+# 
+# IPCA_Habit <- tibble(IPCA_Habit) %>%
+# mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
+# mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
+# glimpse(IPCA_Habit)
+# 
+# IPCA_Habit <- as.xts(ts((IPCA_Habit[103:nrow(IPCA_Habit),2]), start = c(1999,8), end = c(2021,10), frequency = 12))
+# plot(IPCA_Habit)
+# 
+# # Cambio 
+# cambio <- read.csv("/home/luanmugarte/Tese/Dados/cambio.csv", sep = ';', dec = ',', header = T)
+# cambio <- as.xts(ts((cambio[,2]), start = c(1999,8), end = c(2021,10), frequency = 12))
+# 
+# # Commodities 
+# fmi_comm <- read_excel("/home/luanmugarte/Tese/Dados/FMI_comm.xlsx", col_names = c('date','FMI Index','FMI Petróleo'))
+# fmi_comm
+# 
+# # PIB 
+# 
+# pib <- read.csv("/home/luanmugarte/Tese/Dados/PIB.csv")
+# pib
+# pib <- as.xts(ts((pib[11:nrow(pib),2]), start = c(1999,3), end = c(2021,2), frequency = 4))
+# plot(pib)
+# 
+# # Transportes
+# ipca_cheio <- read.csv("/home/luanmugarte/Tese/Dados/IPCA_cheio.csv", sep = ';', dec = ',', header = F)
+# ipca_cheio <- as.xts(ts((ipca_cheio[,2]), start = c(1999,8), end = c(2019,12), frequency = 12))
+# IPCA_transp <- read_excel("/home/luanmugarte/Tese/Dados/transportes_selecionados.xlsx", .name_repair = ~c('Data','Transporte Público','Veículos','Combustíveis'))
+# IPCA_transp <- IPCA_transp %>%
+#   mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
+#   mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = 1.04)-1)*100,2))) %>%
+#   mutate(across(!Data, ~round(.,2) ))
+# date <- seq(as.Date("1999-08-1"), as.Date("2019-12-1"), by = "month")
+# df_acum <- data.frame(date,IPCA_transp[,c(2,3,4)],ipca_cheio)
+# 
+# Inflação por renda
 inflacao_dist <- read_excel("/home/luanmugarte/Tese/Dados/inflacao_por_renda.xlsx", .name_repair = ~c('Data','Muito_Baixa','Baixa','MedBaixa','Media','MedAlta','Alta'))
 inflacao_dist
 
-# IPCA - Alimentos e Bebidas ####
-
-IPCA_AlimBeb <- read.csv("/home/luanmugarte/Tese/Dados/alimbebs.csv", sep = ';', dec = ',', header = T)
-glimpse(IPCA_AlimBeb)
-
-IPCA_AlimBeb <- tibble(IPCA_AlimBeb) %>%
-  mutate(across(!Data, ~(./100)+1)) %>%
-  mutate(across(!Data, ~round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
-
-glimpse(IPCA_AlimBeb)
-
-IPCA_AlimBeb <- as.xts(ts((IPCA_AlimBeb[186:nrow(IPCA_AlimBeb),2]), start = c(2006,7), end = c(2021,3), frequency = 12))
-plot(IPCA_AlimBeb)
-
-#######################################################################
-#                                                                     #
-#                     GRÁFICOS                                        #
-#                                                                     #
-#######################################################################
-
-# Comparando com cambio, proporções e inflações ####
-cambio <- read.csv("/home/luanmugarte/Tese/Dados/cambio.csv", sep = ';', dec = ',', header = T)
-cambio <- diff(log(cambio[,2]))
-cambio
-
-cambio <- as.xts(ts((cambio[84:260]), start = c(2006,7), end = c(2021,3), frequency = 12))
-length(cambio)
-
-date <- seq(as.Date("2006-07-1"), as.Date("2021-3-1"), by = "month")
-
-inflacao_dist
-inflacao_dist_acum <- inflacao_dist %>%
-  mutate(across(!Data, ~(as.numeric(.)/100)+1)) %>%
-  mutate(across(!Data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = 1.04)-1)*100,2))) %>%
-  mutate(prop_alta_mbaixa = Alta/`Muito Baixa`)
-inflacao_dist_acum
-
-# inflacao_dist_semacum <-inflacao_dist %>%
-# mutate(across(!Data, ~round(.,2) ))
-
-df_acum <- data.frame(date,inflacao_dist_acum[,c(2,5,7,8)])
-
-df_acum <- reshape2::melt(df_acum, id.vars= 'date')
-
-# df_semacum <- data.frame(date,inflacao_dist_semacum[,c(2,5,7)])
+# IPCA - Alimentos e Bebidas 
 # 
-# df_semacum <- reshape2::melt(df_semacum, id.vars= 'date')
+# IPCA_AlimBeb <- read.csv("/home/luanmugarte/Tese/Dados/alimbebs.csv", sep = ';', dec = ',', header = T)
+# glimpse(IPCA_AlimBeb)
+# 
+# IPCA_AlimBeb <- tibble(IPCA_AlimBeb) %>%
+#   mutate(across(!Data, ~(./100)+1)) %>%
+#   mutate(across(!Data, ~round((RcppRoll::roll_prodr(., n = 12, na.rm = F, fill = NA)-1)*100,2)))
+# 
+# glimpse(IPCA_AlimBeb)
+# 
+# IPCA_AlimBeb <- as.xts(ts((IPCA_AlimBeb[186:nrow(IPCA_AlimBeb),2]), start = c(2006,7), end = c(2021,3), frequency = 12))
+# plot(IPCA_AlimBeb)
 
-df_cambio <- tibble(cambio, .name_repair = ~c('cambio')) %>%
-mutate(cambio = as.numeric(cambio)) %>%
-drop_na()
-
-df_cambio <- data.frame(date,df_cambio)
-df_cambio
-
-rects_mensal <- df_cambio %>%
-mutate(cambio_5 = case_when(cambio > 0.05 ~ as.numeric(date), cambio < 0.05 ~ 0)) %>%
-mutate(cambio_1 = if_else(((cambio < 0.05) & (cambio > 0.0001)), as.numeric(date),0)) %>%
-drop_na() %>%
-mutate(xstart_5 = ifelse(cambio_5 > 0, as.Date(date),13389)) %>%
-mutate(xend_5 = ifelse(cambio_5 > 0, as.Date(date+31),13389)) %>%
-mutate(xstart_1 = ifelse(cambio_1 > 0, as.Date(date),13389)) %>%
-mutate(xend_1 = ifelse(cambio_1 > 0, as.Date(date+31),13389)) %>%
-mutate(col = ifelse(cambio_5 >0, 'Cambio_5',ifelse(cambio_1 >0, 'Cambio_1','')))
-rects_mensal
-
-rects_mensal$xstart_5 <- as.Date.numeric(rects_mensal$xstart_5)
-rects_mensal$xend_5 <- as.Date.numeric(rects_mensal$xend_5)
-rects_mensal$xstart_1 <- as.Date.numeric(rects_mensal$xstart_1)
-rects_mensal$xend_1 <- as.Date.numeric(rects_mensal$xend_1)
-
-# Plotando o gráfico acumulado ####
-Infineq_cambio_plot <- ggplot(df_acum)  + 
-geom_hline(yintercept = 1, colour= 'darkgrey') +
-# geom_hline(yintercept = 0, colour= 'darkgrey') +
-# geom_hline(yintercept = -1, colour= 'darkgrey') +
-geom_rect(data = rects_mensal, aes(xmin = xstart_5, xmax = xend_5, ymin = min(df_acum$value)-0.5, ymax = max(df_acum$value)+0.5, fill = col), alpha = 0.4) +
-geom_rect(data = rects_mensal, aes(xmin = xstart_1, xmax = xend_1, ymin = min(df_acum$value)-0.5, ymax = max(df_acum$value)+0.5, fill = col), alpha = 0.4) +
-geom_line(aes(x=date, y=value, color=variable, linetype = variable),stat="identity", size = 1) +
-scale_y_continuous(labels = function(x) paste0(x, ""),breaks = scales::pretty_breaks(n = 6), expand = c(0,0)) +
-scale_x_date(date_breaks = '1 month', date_minor_breaks = '6 months', date_labels = "%m-%y",expand = c(0, 0.02)) +
-labs(title = '') +
-scale_fill_brewer(palette="Reds", name = '') +
-scale_color_brewer(palette="Set1", name = '') +
-guides(linetype = "none", fill = 'none') +
-ylab('') +
-xlab('') +
-theme_classic() +
-theme(  panel.grid = element_blank(), 
-        panel.border = element_blank(),
-        legend.position="bottom",
-        legend.title = element_blank(),
-        legend.text = element_text(size=12),
-        legend.key = element_rect(colour = "black"),
-        legend.box.background = element_rect(colour = "black", size = 1),
-        plot.title = element_blank(),
-        axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.6,size=10, colour = 'black'),
-        axis.text.y = element_text(size=10)) 
-
-Infineq_cambio_plot
-
-
-
-p <- ggplotly(Infineq_cambio_plot, tooltip = c("x", "y")) %>%
-layout(legend = list(orientation = "h", x = 0, y =-0.1)) %>%
-config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
-p_ineq <- p
-p_ineq
-p_ineq_acum <- p
-# For loop para remover legendas
-for (i in 1:5) {
-p$x$data[[i]]$showlegend <- F
-
-}
