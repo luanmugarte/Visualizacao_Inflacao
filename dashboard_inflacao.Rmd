@@ -6,6 +6,9 @@ output:
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: scroll
+    theme: 
+      version: 4
+      bootswatch: minty
 ---
 
 ```{r setup, include=FALSE}
@@ -29,23 +32,36 @@ source('extracao_limpeza_dados.R', echo = F)
 source('elaboracao_graficos.R', echo = F)
 ```
 
-# Inflação no Brasil
+# Inflação no Brasil {data-icon="fa-signal"}
 
-## Inflação no Brasil nos anos 2000
+### Inflação no Brasil nos anos 2000 {data-width=700}
 ```{r, echo = F}
 p_ipca_cheio
 ```
 
-## Inflação por categorias
+### Comentário {data-width=700}
+
+LALALALALALALLLLLLLLLLLLLLLLLLLLLLLALALALALAL
+
+## E no período da pandemia? {data-width=700}
+
+
+### Inflação por categorias {data-width=700}
 ```{r, echo = F}
-DT::datatable(ipca_categorias %>% select(!c(variacao_acumulada,id_categoria)), 
-              rownames = FALSE, 
-              options = list(pageLength = 5, scrollX = TRUE), 
-              class = 'white-space: nowrap' )
+p_ipca_categorias_acum
+
+p_ipca_categorias_doze
 ```
 
-## Inflação no Brasil nos anos 2000
+## E a inflação onde eu moro?
+
+### Inflação por município ou região metropolitana
 ```{r, echo = F}
-htmltools::tagList(lapply(1:3, function(x) { plot_ly(x = rnorm(10)) }))
+tabela_categorias
+```
+
+## Tabela por município ou região metropolitana
+```{r, echo = F}
+tabela_rm_municipio
 ```
 

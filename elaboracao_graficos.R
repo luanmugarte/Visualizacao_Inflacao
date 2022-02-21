@@ -199,22 +199,99 @@ p_ipca_categorias_mensal
 
 # Esse gráfico parece ser pouco informativo, decidi por não incluir
 
-# Mapa do Brasil ####
+# Gráfico por RM e município ####
 
-library(plotly)
-library(rjson)
+ipca_rm_mun_df <-ipca_rm_municipio %>%
+  ungroup() %>%
+  filter(categoria == 'Índice cheio') %>%
+  # mutate(ano = case_when(ano == 2020 ~ as.numeric(2020),
+  #                        ano == 2021 ~ as.numeric(2021))) %>%
+  select(ano,nome,variacao_doze_meses)
 
-data <- fromJSON(file="https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
-data$features[[1]]
+ipca_rm_mun_plot <- ggplot(ipca_rm_mun_df, aes(x=nome, y = variacao_doze_meses, fill = as.factor(ano))) +
+  geom_bar(stat="identity", position = position_dodge2()) +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),breaks = scales::pretty_breaks(n = 6), expand = c(0,0)) +
+  scale_fill_brewer(palette="Set2") +
+  theme_classic() +
+    ylab('') +
+    xlab('') +
+    theme(  panel.grid = element_blank(),
+            panel.border = element_blank(),
+            legend.position="right",
+            legend.title = element_blank(),
+            legend.text = element_text(size=12),
+            legend.key = element_rect(colour = "black"),
+            legend.box.background = element_rect(colour = "black", size = 1),
+            plot.title = element_blank(),
+            axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.6,size=10, colour = 'black'),
+            axis.text.y = element_text(size=10,colour = 'black'))
+  
+ipca_rm_mun_plot
 
 
+
+
+# 
+# ipca_mapa_df <-ipca_rm_municipio %>%
+#   ungroup() %>%
+#   filter(categoria == 'Índice cheio' & ano == 2020) %>%
+#   select(ano,nome,variacao_doze_meses)
+# ipca_mapa_df
+# 
+# ipca_mapa_df$codigo_ibg <- rep(c(28,53,50,52,32,15,31,41,23,43,29,35,26,33,12,21), each = 1)
+# ipca_mapa_df
+# 
+# data <- fromJSON(file="https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson")
+# data
+# 
+# g <- list(
+#   scope = 'brazil',
+#   showland = TRUE,
+#   landcolor = toRGB("gray85"),
+#   subunitwidth = 1,
+#   countrywidth = 1,
+#   subunitcolor = toRGB("white"),
+#   countrycolor = toRGB("white")
+# )
+# 
+# fig <- plot_ly()
+# fig <- fig %>% add_trace(
+#   type="choropleth",
+#   geojson=data,
+#   locations=ipca_mapa_df$codigo_ibg,
+#   z=ipca_mapa_df$variacao_doze_meses,
+#   colorscale="Viridis",
+#   zmin=0,
+#   zmax=12,
+#   marker=list(line=list(
+#     width=0)
+#   )
+# )
+# 
+# 
+# fig
+# 
+# fig <- fig %>% colorbar(title = "Unemployment Rate (%)")
+# fig <- fig %>% layout(
+#   title = "2016 US Unemployment by County"
+# )
+# 
+# fig <- fig %>% layout(
+#   geo = g
+# )
+# 
+# fig
+# 
+# remotes::install_github("ipeaGIT/geobr", subdir = "r-package")
+# library(geobr)
 
 #---------------------------------------------------------------------#
 #                                                                     #
 
 ####     TABELAS                                                   ####
 #                                                                     #
-#---------------------------------------------------------------------#
+#---------------------------------------e------------------------------#
 
 # Tabela de categorias
 
