@@ -2,6 +2,8 @@ setwd("/home/luanmugarte/base_de_dados/Visualizacao_Inflacao")
 
 # Carregando pacotes
 #### Carregando pacotes ####
+library(flexdashboard)
+library(shiny)
 library(basedosdados)
 library(xts) # Objeto xts
 library(zoo)
@@ -117,7 +119,7 @@ ipca_categorias_complemento <- df_ipca_categorias_complemento %>%
   mutate(ano = 2020) %>%
   mutate(mes = 1:11) %>%
   dplyr::select(ano,mes,everything())
-
+ipca_categorias_complemento
 ipca_categorias_melted1 <- reshape2::melt(ipca_categorias_complemento,
                                           id.vars=(c('ano','mes')))
 colnames(ipca_categorias_melted1) <- c('ano','mes','id_categoria','value')
@@ -127,7 +129,7 @@ ipca_categorias_melted2 <-ipca_categorias %>%
   select(ano,mes,id_categoria,variacao_doze_meses) %>%
   dplyr::rename(value = variacao_doze_meses) %>%
   drop_na()
-
+ipca_categorias_melted2
 # Há um número de categorias menor na IPCA a partir de 2020
 length(unique(ipca_categorias_melted1$id_categoria))
 length(unique(ipca_categorias_melted2$id_categoria))
@@ -152,10 +154,16 @@ ipca_categorias_melted <- ipca_categorias_melted %>%
   arrange(id_categoria)
 
 # Criando nova coluna no tibble original
-ipca_categorias$variacao_doze_meses <- ipca_categorias_12$value
+ipca_categorias$variacao_doze_meses <- ipca_categorias_melted$value
 
 # Tibble final com todos os valores
-ipca_categorias
+df_ipca_categorias <- ipca_categorias %>%
+  mutate(variacao_acumulada = round(variacao_acumulada, 2)) %>%
+  mutate(variacao_doze_meses = round(variacao_doze_meses, 2)) %>%
+  mutate(variacao_mensal = round(variacao_mensal, 2)) %>%
+  mutate(peso_mensal = round(peso_mensal, 2))
+  
+  
 
 # - - - - - - - - - - - - - - - #
 

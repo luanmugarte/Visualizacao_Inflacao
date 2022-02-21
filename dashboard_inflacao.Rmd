@@ -1,0 +1,51 @@
+---
+title: "My dashboard"
+author: "Luan Mugarte"
+date: "`r Sys.Date()`"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = F}
+pacman::p_load(
+  rio,             # data import/export     
+  here,            # locate files
+  tidyverse,       # data management and visualization
+  flexdashboard,   # dashboard versions of R Markdown reports
+  shiny,           # interactive figures
+  plotly,          # interactive figures
+  DT               # interactive tables
+)
+```
+
+```{r, include = F}
+source('extracao_limpeza_dados.R', echo = F)
+source('elaboracao_graficos.R', echo = F)
+```
+
+# Inflação no Brasil
+
+## Inflação no Brasil nos anos 2000
+```{r, echo = F}
+p_ipca_cheio
+```
+
+## Inflação por categorias
+```{r, echo = F}
+DT::datatable(ipca_categorias %>% select(!c(variacao_acumulada,id_categoria)), 
+              rownames = FALSE, 
+              options = list(pageLength = 5, scrollX = TRUE), 
+              class = 'white-space: nowrap' )
+```
+
+## Inflação no Brasil nos anos 2000
+```{r, echo = F}
+htmltools::tagList(lapply(1:3, function(x) { plot_ly(x = rnorm(10)) }))
+```
+
