@@ -43,13 +43,13 @@ ipca_cheio_plot <- ggplot(ipca_cheio_df)  +
           legend.box.background = element_rect(colour = "black", size = 1),
           plot.title = element_blank(),
           axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 0.8,size=11, colour = 'black'),
-          axis.text.y = element_text(size=14))
+          axis.text.y = element_text(size=12))
 
 ipca_cheio_plot
 
 
 p_ipca_cheio <- ggplotly(ipca_cheio_plot, tooltip = c("x", "y")) %>%
-  layout(legend = list(orientation = "h", x = 0, y =-0.1)) %>%
+  layout(legend = list(orientation = "h", x = 0, y =-1)) %>%
   config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
 p_ipca_cheio
 
@@ -101,7 +101,7 @@ ipca_categorias_acum_plot
 
 
 p_ipca_categorias_acum <- ggplotly(ipca_categorias_acum_plot, tooltip = c("x", "y")) %>%
-  layout(legend = list(orientation = "h", x = 0, y = -0.3, title = '')) %>%
+  layout(legend = list(orientation = "h", x = 0, y = -1, title = '')) %>%
   config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
 p_ipca_categorias_acum
 
@@ -147,7 +147,7 @@ ipca_categorias_doze_plot
 
 
 p_ipca_categorias_doze <- ggplotly(ipca_categorias_doze_plot, tooltip = c("x", "y")) %>%
-  layout(legend = list(orientation = "h", x = 0, y = -0.3, title = '')) %>%
+  layout(legend = list(orientation = "h", x = 0, y = -1, title = '')) %>%
   config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
 p_ipca_categorias_doze
 
@@ -193,7 +193,7 @@ ipca_categorias_mensal_plot <- ggplot(ipca_categorias_mensal_df)  +
 ipca_categorias_mensal_plot
 
 p_ipca_categorias_mensal <- ggplotly(ipca_categorias_mensal_plot, tooltip = c("x", "y")) %>%
-  layout(legend = list(orientation = "h", x = 0, y = -0.3, title = '')) %>%
+  layout(legend = list(orientation = "h", x = 0, y = -0.5, title = '')) %>%
   config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
 p_ipca_categorias_mensal
 
@@ -229,6 +229,12 @@ ipca_rm_mun_plot <- ggplot(ipca_rm_mun_df, aes(x=nome, y = variacao_doze_meses, 
   
 ipca_rm_mun_plot
 
+p_ipca_rm_mun <- ggplotly(ipca_rm_mun_plot, tooltip = c("x", "y")) %>%
+  layout(legend = list(orientation = "h", x = 0, y = -1, title = '')) %>%
+  config(modeBarButtons = list(list("resetScale2d"),list('toImage'), list('toggleSpikelines'),list('hoverCompareCartesian'),list('hoverClosestCartesian')), displaylogo = FALSE)
+p_ipca_rm_mun
+
+p_ipca_rm_mun <- p_ipca_rm_mun %>% layout(legend = list(x = 100, y = 0.5))
 
 #---------------------------------------------------------------------#
 #                                                                     #
@@ -238,14 +244,14 @@ ipca_rm_mun_plot
 #---------------------------------------e------------------------------#
 
 # Tabela de categorias
-
-tabela_categorias <- DT::datatable(df_ipca_categorias %>%
+ipca_categorias
+tabela_categorias <- DT::datatable(ipca_categorias %>%
                 ungroup %>%
-                select(!c(variacao_acumulada,id_categoria)) %>%
+                select(!c(id_categoria,variacao_acumulada)) %>%
                 mutate(across(c(ano,mes), ~ factor(.,ordered = T))), 
               rownames = FALSE, 
               options = list(pageLength = 20, 
-                             scrollX = TRUE,
+                             scrollX = F,
                              searchHighlight = TRUE,
                              language = list(url = '//cdn.datatables.net/plug-ins/1.10.11/i18n/Portuguese-Brasil.json')
               ), 
@@ -258,7 +264,7 @@ tabela_categorias <- DT::datatable(df_ipca_categorias %>%
                            'Variação Mensal (%)',
                            'Variação acumulada em 12 meses (%)')
 )
-
+tabela_categorias
 # Tabela de municípios e RM
 ipca_rm_municipio
 tabela_rm_municipio <- DT::datatable(ipca_rm_municipio %>%
@@ -267,7 +273,7 @@ tabela_rm_municipio <- DT::datatable(ipca_rm_municipio %>%
                 select(ano,nome,categoria, peso_mensal, variacao_doze_meses), 
               rownames = FALSE, 
               options = list(pageLength = 20, 
-                             scrollX = TRUE,
+                             scrollX = F,
                              searchHighlight = TRUE,
                              language = list(url = '//cdn.datatables.net/plug-ins/1.10.11/i18n/Portuguese-Brasil.json')
               ), 

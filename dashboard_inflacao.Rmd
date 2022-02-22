@@ -1,7 +1,6 @@
 ---
-title: "My dashboard"
+title: "Inflação no Brasil e na pandemia"
 author: "Luan Mugarte"
-date: "`r Sys.Date()`"
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -29,39 +28,74 @@ pacman::p_load(
 
 ```{r, include = F}
 source('extracao_limpeza_dados.R', echo = F)
-source('elaboracao_graficos.R', echo = F)
+source('elaboracao_figuras.R', echo = F)
 ```
 
-# Inflação no Brasil {data-icon="fa-signal"}
+# Gráficos {data-icon="fa-signal"}
 
-### Inflação no Brasil nos anos 2000 {data-width=700}
-```{r, echo = F}
+## Inflação no Brasil nos anos recentes
+
+### Inflação no Brasil nos anos 2000 {data-width=900}
+```{r, fig.align='center',  echo = F}
 p_ipca_cheio
 ```
 
-### Comentário {data-width=700}
+### Comentário 
 
-LALALALALALALLLLLLLLLLLLLLLLLLLLLLLALALALALAL
+A inflação é um fenômeno que pode ter múltiplas causas. Uma alta do dólar, uma elevação dos preços das *commodities*, uma quebra na safra agrícola, uma mercado interno muito aquecido, todos estes fatores podem gerar inflação. Recentemente, no período da pandemia de Covid-19, a inflação medida pelo IPCA acumulado em 12 meses atingiu novamente dois dígitos, o que não ocorria desde 2015. 
 
-## E no período da pandemia? {data-width=700}
+Assim, a problemática da inflação retornou à tona. Considerando as diversas causas possíveis, vale olhar mais de perto quais foram os principais bens e serviços que mais encareceram neste período da pandemia.
 
+## E no período da pandemia?
 
-### Inflação por categorias {data-width=700}
-```{r, echo = F}
+### Inflação por grupos do IPCA {data-width=800} 
+
+```{r, out.width = "100%", fig.align='center', echo = F}
 p_ipca_categorias_acum
 
 p_ipca_categorias_doze
 ```
 
-## E a inflação onde eu moro?
+### Categorias do IPCA
 
-### Inflação por município ou região metropolitana
-```{r, echo = F}
+O Índice de Preços ao Consumidor Amplo (IPCA) é um índice que procura avaliar a dinâmica dos preços aos consumidores no Brasil. O índice cheio do IPCA mostra como os preços de um consumidor médio representativo da população brasileira variou em um determinado intervalo de tempo.
+
+Para calcular o IPCA, o IBGE utiliza a Pesquisa de Orçamentos Familiares (POF), que contém informações sobre o perfil de consumo de milhares de brasileiros. A população entrevista nesta pesquisa conta o quanto eles gastam da sua renda diversos itens possíveis de consumo, compreendendo desde o feijão carioca até os serviços de internet e loteria.
+
+Esses ítens podem ser agrupados em grupos de categorias, como mostra-se ao lado as variações nos preços dos 9 principais grupos do IPCA. Como cada família tem sua própria cesta de consumo, a inflação sentida por cada família pode (e muito provavelmente é) diferente do índice cheio do IPCA.
+
+Como podemos ver ao lado, os preços dos bens e serviços dos grupos de Alimentação e Bebidas e Transporte cresceram muito nos últimos 2 anos. A alta do dólar, a subida nos preços das *commodities* (principalmente, do petróleo) e as quebras nas cadeias produtivas contribuíram fortemente para esse panorama.
+
+## Inflação por município ou região metropolitana
+
+### Taxa de variação do IPCA acumulado ao ano por localidade {data-width=1000}
+```{r, out.width = "150%", fig.align='center',  echo = F}
+p_ipca_rm_mun
+```
+
+### IPCA para cada localidade
+A POF realiza entrevistas somente em determinadas regiões metropolitanas e municípios do Brasil, devido à inviabilidade de realizar entrevistas para a população inteira. Assim, é possível aferir o perfil de consumo e o IPCA para cada umas dessas localidades.
+
+O IPCA acumulado ao final dos anos de 2020 e 2021 é mostrado no gráfico ao lado. Como pode ser visto, ele varia bastante conforme andamos pelo Brasil. Perfis de consumo diferentes (a população de cada localidade pode ter hábitos de consumo distintos), os custos de transporte e concorrência local podem ser alguns fatores que explicam essa variabilidade. Enquanto alguns habitantes de um município ou região podem ter uma inflação mais alta em um momento, isto pode se reverter em outro.
+
+
+# Tabelas {data-icon="fa-table"}
+
+## Tabelas de dados da inflação para categorias do IPCA
+
+### Grupos e subgrupos do IPCA {data-width=700}
+```{r, out.width = "90%", echo = F}
 tabela_categorias
 ```
 
-## Tabela por município ou região metropolitana
-```{r, echo = F}
+> Descrição: a Tabela traz alguns dados para as diferentos grupos e subgrupos do IPCA, como o seu peso mensal (referente à família representativa do IPCA), a variação em cada mês e sua variação acumulada em 12 meses.
+
+
+## Tabela da inflação por município ou região metropolitana
+
+### Municípios e regiões metropolitanas {data-width=700}
+```{r, out.width = "50%", echo = F}
 tabela_rm_municipio
 ```
 
+> Descrição: a Tabela trata de dados do IPCA referentes às diferentes regiões metropolitanas e municípios contemplados no índice. É possível ver o quanto de cada categoria ou índice cheio apresentou de peso mensal (referente à família representativa do IPCA da *localidade*), a variação em cada mês e sua variação ao final de 2020 ou 2021.

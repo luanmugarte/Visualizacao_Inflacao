@@ -43,8 +43,6 @@ df_ipca_cheio <- bd_collect(query)
 query <- bdplyr("br_ibge_ipca.mes_categoria_brasil")
 df_ipca_categorias <- bd_collect(query)
 
-unique(df_ipca_categorias$categoria)
-
 # Municípios e Regioes Metropolitanas
 query <- bdplyr("br_ibge_ipca.mes_categoria_municipio")
 df_ipca_municipio <- bd_collect(query)
@@ -86,7 +84,7 @@ ipca_cheio
 # - - - - - - - - - - - - - - - #  
 
 # IPCA de categorias
-df_ipca_categorias
+df_ipca_categorias 
   
 ipca_categorias <- df_ipca_categorias %>%
   select(!c(id_categoria_bd,variacao_anual)) %>%
@@ -94,8 +92,7 @@ ipca_categorias <- df_ipca_categorias %>%
   # Filtrando somente até ítens do IPCA
   filter(id_categoria < 10000) %>%
   group_by(id_categoria) %>%
-  mutate(variacao_acumulada = (cumprod(1+(variacao_mensal/100))-1)*100) %>%
-  arrange(id_categoria)
+  mutate(variacao_acumulada = (cumprod(1+(variacao_mensal/100))-1)*100)
 ipca_categorias
 
 # Complementando com os dados de antes de 2020 para obter os dados da variação em 12 meses
@@ -111,7 +108,7 @@ df_ipca_categorias_complemento <- rbind(ipca_categorias_complemento,
 df_ipca_categorias_complemento
 
 # Criando um tibble que possui os valores falantes do IPCA acumulado em 12 meses
-ipca_categorias_complemento <- df_ipca_categorias_complemento %>%
+df_ipca_categorias_complemento <- df_ipca_categorias_complemento %>%
   mutate(across(!data, ~(as.numeric(.)/100)+1)) %>%
   mutate(across(!data, ~ round((RcppRoll::roll_prodr(., n = 12, na.rm = T, fill = 1.04)-1)*100,2))) %>%
   select(!data) %>%
@@ -119,17 +116,28 @@ ipca_categorias_complemento <- df_ipca_categorias_complemento %>%
   mutate(ano = 2020) %>%
   mutate(mes = 1:11) %>%
   dplyr::select(ano,mes,everything())
-ipca_categorias_complemento
-ipca_categorias_melted1 <- reshape2::melt(ipca_categorias_complemento,
+df_ipca_categorias_complemento
+
+
+ipca_categorias_melted1 <- reshape2::melt(df_ipca_categorias_complemento,
                                           id.vars=(c('ano','mes')))
+
 colnames(ipca_categorias_melted1) <- c('ano','mes','id_categoria','value')
 
+ipca_categorias_melted1 <- ipca_categorias_melted1   %>%
+   mutate(id_categoria = as.factor(id_categoria)) %>%
+   arrange(id_categoria)
+  
 # Pegando os valores acumulados em 12 meses do IPCA de dezembro/20 até 22
-ipca_categorias_melted2 <-ipca_categorias %>%
+ipca_categorias_melted2 <- ipca_categorias %>%
   select(ano,mes,id_categoria,variacao_doze_meses) %>%
+  # mutate(id_categoria = as.factor(id_categoria)) %>%
+  # mutate(id_categoria = as.numeric(id_categoria)) %>%
+  # arrange(id_categoria) %>%
   dplyr::rename(value = variacao_doze_meses) %>%
   drop_na()
-ipca_categorias_melted2
+
+
 # Há um número de categorias menor na IPCA a partir de 2020
 length(unique(ipca_categorias_melted1$id_categoria))
 length(unique(ipca_categorias_melted2$id_categoria))
@@ -150,20 +158,25 @@ ipca_categorias_melted <- rbind(ipca_categorias_melted1,
                                 ipca_categorias_melted2)
 
 ipca_categorias_melted <- ipca_categorias_melted %>%
+  mutate(id_categoria = as.character.numeric_version(id_categoria)) %>%
   mutate(id_categoria = as.numeric(id_categoria)) %>%
+  arrange(id_categoria) %>%
+  rename(variacao_doze_meses = value)
+
+ipca_categorias <- ipca_categorias %>%
   arrange(id_categoria)
 
 # Criando nova coluna no tibble original
-ipca_categorias$variacao_doze_meses <- ipca_categorias_melted$value
+ipca_categorias$variacao_doze_meses <- ipca_categorias_melted$variacao_doze_meses
 
 # Tibble final com todos os valores
-df_ipca_categorias <- ipca_categorias %>%
+ipca_categorias <- ipca_categorias %>%
   mutate(variacao_acumulada = round(variacao_acumulada, 2)) %>%
   mutate(variacao_doze_meses = round(variacao_doze_meses, 2)) %>%
   mutate(variacao_mensal = round(variacao_mensal, 2)) %>%
   mutate(peso_mensal = round(peso_mensal, 2))
   
-  
+ipca_categorias  
 
 # - - - - - - - - - - - - - - - #
 
